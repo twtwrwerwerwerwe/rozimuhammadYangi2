@@ -102,9 +102,8 @@ async def send_elon(message: types.Message, state: FSMContext):
     )
 
     await bot.send_message(
-        chat_id=GROUP_ID,
-        text=final_text,
-        parse_mode="Markdown"
+    chat_id=GROUP_ID,
+    text=final_text
     )
 
     await message.answer(
