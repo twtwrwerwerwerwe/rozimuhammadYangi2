@@ -47,8 +47,8 @@ async def start(message: types.Message, state: FSMContext):
     else:
         await message.answer(
             "🚖 Salom Rishton–Bag‘dod–Toshkent taxi botiga xush kelibsiz!\n\n"
-            "📲 Iltimos raqamingizni yuboring:",
-            "📞 Asosiy shopirga aloqaga chiqsangiz ham bo'ladi +998908311144",
+            "📲 Iltimos raqamingizni yuboring:\n\n"
+            "📞 Asosiy shofyor: +998908311144",
             reply_markup=contact_btn
         )
         await state.set_state(Form.phone)
@@ -95,7 +95,7 @@ async def send_elon(message: types.Message, state: FSMContext):
     phone = users.get(user_id)
 
     final_text = (
-        "🚖 *YANGI E’LON*\n\n"
+        "🚖 *YANGI E’LON\n\n"
         f"📍 {text}\n\n"
         f"📞 Telefon: {phone}\n\n"
         "🟢 Tezda bog‘laning!"
