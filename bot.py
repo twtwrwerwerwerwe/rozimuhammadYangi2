@@ -63,7 +63,7 @@ async def start(message: types.Message, state: FSMContext):
         await message.answer(
             "🚖 Salom Rishton–Bag‘dod–Toshkent taxi botiga xush kelibsiz!\n\n"
             "📲 Iltimos raqamingizni yuboring:\n\n"
-            "📞 Asosiy shofyor: +998908311144",
+            "📞 Asosiy shofyor aloqaga chiqishingiz mumkin: +998908311144",
             reply_markup=contact_btn
         )
         await state.set_state(Form.phone)
@@ -154,7 +154,7 @@ async def skip_location(message: types.Message, state: FSMContext):
 
     await bot.send_message(
         GROUP_ID,
-        f"🚖 YANGI E’LON\n\n📍 {text}\n\n📞 {phone}",
+        f"🚖 YANGI E’LON TOPILDI!\n\n📍 {text}\n\n📞 {phone}",
         reply_markup=kb
     )
 
