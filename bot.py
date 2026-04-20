@@ -1,6 +1,9 @@
 import asyncio
 from aiogram import Bot, Dispatcher, types, F
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import (
+    ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove,
+    InlineKeyboardMarkup, InlineKeyboardButton
+)
 from aiogram.filters import CommandStart
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
@@ -13,8 +16,9 @@ bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
 
 users = {}
+temp_data = {}
 
-# 📞 kontakt tugma
+# 📞 kontakt
 contact_btn = ReplyKeyboardMarkup(
     keyboard=[[KeyboardButton(text="📞 Raqamni yuborish", request_contact=True)]],
     resize_keyboard=True
@@ -26,47 +30,50 @@ menu_btn = ReplyKeyboardMarkup(
     resize_keyboard=True
 )
 
-# ⏭ skip
-skip_btn = ReplyKeyboardMarkup(
-    keyboard=[[KeyboardButton(text="⏭ O‘tkazib yuborish")]],
+# 📍 location + skip
+location_btn = ReplyKeyboardMarkup(
+    keyboard=[
+        [KeyboardButton(text="📍 Lokatsiyani yuborish", request_location=True)],
+        [KeyboardButton(text="⏭ O‘tkazib yuborish")]
+    ],
     resize_keyboard=True
 )
 
-# 🔄 states
 class Form(StatesGroup):
     phone = State()
     elon = State()
     location = State()
 
-# vaqtincha e’lon saqlash
-temp_data = {}
+# 🔗 link generator
+def get_user_link(user: types.User):
+    if user.username:
+        return f"https://t.me/{user.username}"
+    else:
+        return f"tg://user?id={user.id}"
+
+def get_user_name(user: types.User):
+    return user.username if user.username else user.full_name
 
 # 🚀 START
 @dp.message(CommandStart())
 async def start(message: types.Message, state: FSMContext):
-    user_id = message.from_user.id
-
-    if user_id in users:
+    if message.from_user.id in users:
         await message.answer("🏠 Bosh menyu:", reply_markup=menu_btn)
     else:
         await message.answer(
-            "🚖 Salom Rishton–Bag‘dod–Toshkent taxi botiga xush kelibsiz!\n\n"
-            "📲 Iltimos raqamingizni yuboring:\n\n"
-            "📞 Asosiy shofyor: +998908311144",
+            "🚖 Salom!\n\n📲 Iltimos raqamingizni yuboring:",
             reply_markup=contact_btn
         )
         await state.set_state(Form.phone)
 
-# 📞 contact olish
+# 📞 phone
 @dp.message(Form.phone, F.contact)
 async def get_phone(message: types.Message, state: FSMContext):
-    user_id = message.from_user.id
     phone = message.contact.phone_number
-
     if not phone.startswith("+"):
         phone = "+" + phone
 
-    users[user_id] = phone
+    users[message.from_user.id] = phone
 
     await message.answer(
         "✅ Raqamingiz saqlandi!\n\n🚖 Endi e’lon berishingiz mumkin:",
@@ -74,41 +81,35 @@ async def get_phone(message: types.Message, state: FSMContext):
     )
     await state.clear()
 
-# 🚖 e’lon boshlash
+# 🚖 start elon
 @dp.message(F.text == "🚖 E’lon berish")
 async def elon_start(message: types.Message, state: FSMContext):
-    user_id = message.from_user.id
-
-    if user_id not in users:
-        await message.answer("❗ Avval raqamingizni yuboring /start")
+    if message.from_user.id not in users:
+        await message.answer("❗ Avval /start bosing")
         return
 
     await message.answer(
-        "✍️ Iltimos habaringizni yozing:",
+        "✍️ Iltimos e’loningizni yozing:",
         reply_markup=ReplyKeyboardRemove()
     )
-
     await state.set_state(Form.elon)
 
-# 📝 e’lon matni
+# 📝 elon text
 @dp.message(Form.elon)
 async def get_elon(message: types.Message, state: FSMContext):
     temp_data[message.from_user.id] = {"text": message.text}
 
     await message.answer(
         "📍 Lokatsiya yuboring yoki o‘tkazib yuboring:",
-        reply_markup=skip_btn
+        reply_markup=location_btn
     )
-
     await state.set_state(Form.location)
 
-# 📍 lokatsiya bilan
+# 📍 location bilan
 @dp.message(Form.location, F.location)
-async def get_location(message: types.Message, state: FSMContext):
+async def send_with_location(message: types.Message, state: FSMContext):
     user_id = message.from_user.id
-    data = temp_data.get(user_id)
-
-    text = data["text"]
+    text = temp_data[user_id]["text"]
     phone = users[user_id]
 
     lat = message.location.latitude
@@ -130,7 +131,7 @@ async def get_location(message: types.Message, state: FSMContext):
     await bot.send_message(GROUP_ID, "👇", reply_markup=kb)
 
     await message.answer(
-        "✅ E’loningiz yuborildi!\n\n⏳ Javobni kuting.\n\n🚖 Yana e’lon berishingiz mumkin:",
+        "✅ E’loningiz taxilar guruhiga yuborildi!\n\n⏳ Iltimos shofyor qabul qilishini kuting.",
         reply_markup=menu_btn
     )
 
@@ -140,9 +141,7 @@ async def get_location(message: types.Message, state: FSMContext):
 @dp.message(Form.location, F.text == "⏭ O‘tkazib yuborish")
 async def skip_location(message: types.Message, state: FSMContext):
     user_id = message.from_user.id
-    data = temp_data.get(user_id)
-
-    text = data["text"]
+    text = temp_data[user_id]["text"]
     phone = users[user_id]
 
     kb = InlineKeyboardMarkup(
@@ -158,41 +157,37 @@ async def skip_location(message: types.Message, state: FSMContext):
     )
 
     await message.answer(
-        "✅ E’loningiz yuborildi!\n\n⏳ Javobni kuting.\n\n🚖 Yana e’lon berishingiz mumkin:",
+        "✅ E’loningiz taxilar guruhiga yuborildi!\n\n⏳ Iltimos shofyor qabul qilishini kuting.",
         reply_markup=menu_btn
     )
 
     await state.clear()
 
-# ✅ qabul qilish
+# ✅ accept
 @dp.callback_query(F.data.startswith("accept_"))
 async def accept_order(callback: types.CallbackQuery):
     driver = callback.from_user
     user_id = int(callback.data.split("_")[1])
 
-    phone = users.get(user_id)
+    driver_link = get_user_link(driver)
+    driver_name = get_user_name(driver)
+    driver_phone = users.get(driver.id, "Noma’lum")
 
-    name = driver.username if driver.username else driver.full_name
-
+    # guruhdagi xabarni edit qilish
     await callback.message.edit_text(
-        callback.message.text + f"\n\n✅ Qabul qilindi: @{name}"
+        callback.message.text +
+        f"\n\n✅ Qabul qilindi: [{driver_name}]({driver_link})\n\n❗ Iltimos bezovta qilmang",
+        parse_mode="Markdown"
     )
 
-    # yo‘lovchiga habar
+    # userga yuborish
     try:
         await bot.send_message(
             user_id,
-            f"🚖 Sizning e’loningizni @{name} qabul qildi!\n\n📞 Bog‘laning: {phone}"
+            f"🚖 Sizning e’loningizni [{driver_name}]({driver_link}) qabul qildi!\n\n📞 Raqami: {driver_phone}",
+            parse_mode="Markdown"
         )
     except:
         pass
 
     await callback.answer("Qabul qilindi!")
-
-# ▶️ run
-async def main():
-    print("Bot ishga tushdi 🚀")
-    await dp.start_polling(bot)
-
-if __name__ == "__main__":
-    asyncio.run(main())
